@@ -240,8 +240,9 @@ def _count_items(node):
     return sum(_count_items(v) for v in node.values())
 
 
-def _render_time_groups(tree, render_item, s):
-    """Render nested time hierarchy as accordion HTML."""
+def _render_time_groups(tree, render_item, s, collapsed=False):
+    """Render nested time hierarchy as accordion HTML.
+    If collapsed=True, all groups start closed (no auto-open)."""
     parts = []
     levels = ["century", "shikinen", "year", "month"]
 
@@ -252,7 +253,10 @@ def _render_time_groups(tree, render_item, s):
 
         for i, key in enumerate(keys):
             first_at_level = (i == 0) and is_first
-            open_class = " open" if first_at_level or single_child else ""
+            if collapsed:
+                open_class = ""
+            else:
+                open_class = " open" if first_at_level or single_child else ""
             count = _count_items(node[key])
             count_text = _group_count_label(count, s)
 
@@ -712,7 +716,7 @@ def generate_index_html(series_map, issues_by_series, s):
 
         # All series accordion
         tree = _time_hierarchy(series_items, "_date", s)
-        accordion_html = _render_time_groups(tree, render, s)
+        accordion_html = _render_time_groups(tree, render, s, collapsed=True)
         all_section = f"""        <h2 class="section-heading section-divider">{s['all_series']}</h2>
 {accordion_html}"""
 
@@ -783,7 +787,7 @@ def generate_series_html(series_id, info, issues, s):
 
     # All issues accordion
     tree = _time_hierarchy(issues, "date", s)
-    grouped_html = _render_time_groups(tree, render, s)
+    grouped_html = _render_time_groups(tree, render, s, collapsed=True)
     all_section = f"""            <h2 class="section-heading section-divider">{s['all_issues']}</h2>
 {grouped_html}"""
 
