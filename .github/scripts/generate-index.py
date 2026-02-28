@@ -43,6 +43,11 @@ STRINGS = {
         "lang_switch_label": "EN",
         "lang_switch_url": "index-en.html",
         "filename": "index.html",
+        "nav_logo": "トキストレージ",
+        "nav_newsletter": "ニュースレター本誌",
+        "nav_newsletter_url": f"{LP_BASE}/newsletters.html",
+        "nav_series": "シリーズ一覧",
+        "nav_toggle_label": "メニュー",
     },
     "en": {
         "lang": "en",
@@ -64,6 +69,11 @@ STRINGS = {
         "lang_switch_label": "JA",
         "lang_switch_url": "index.html",
         "filename": "index-en.html",
+        "nav_logo": "TokiStorage",
+        "nav_newsletter": "Newsletter",
+        "nav_newsletter_url": f"{LP_BASE}/newsletters-en.html",
+        "nav_series": "Series List",
+        "nav_toggle_label": "Menu",
     },
 }
 
@@ -149,35 +159,120 @@ def _footer_html(s):
     </footer>"""
 
 
+def _nav_html(s, extra_links=""):
+    """Generate toki-nav navigation bar."""
+    return f"""    <nav class="toki-nav">
+        <a href="{LP_BASE}/" class="nav-logo">{s['nav_logo']}</a>
+        <div class="nav-links">
+            <a href="{s['nav_newsletter_url']}">{s['nav_newsletter']}</a>
+{extra_links}            <a href="{s['lang_switch_url']}" class="lang-switch" aria-label="{s['lang_switch_label']}">{s['lang_switch_label']}</a>
+        </div>
+        <button class="nav-toggle" aria-label="{s['nav_toggle_label']}">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>"""
+
+
+def _nav_js():
+    """Mobile nav toggle script."""
+    return """    <script>
+    (function() {
+        var t = document.querySelector('.nav-toggle');
+        var n = document.querySelector('.nav-links');
+        if (t && n) t.addEventListener('click', function() { n.classList.toggle('open'); });
+    })();
+    </script>"""
+
+
 def common_css():
     return """        *, *::before, *::after { box-sizing: border-box; }
         body {
             margin: 0;
+            padding-top: 3.2rem;
             font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Segoe UI', Roboto, sans-serif;
             background: #f8fafc;
             color: #1e293b;
         }
 
-        .page-header {
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 0.75rem 1.5rem;
+        /* ---- Navigation ---- */
+        .toki-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem 2rem;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid #e2e8f0;
+            transition: box-shadow 0.3s ease;
         }
-        .page-header a { color: #2563EB; text-decoration: none; font-size: 0.85rem; }
-        .page-header a:hover { text-decoration: underline; }
-        .lang-switch {
-            font-size: 0.8rem;
+        .nav-logo {
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            text-decoration: none;
+            letter-spacing: 0.08em;
+        }
+        .nav-logo::before {
+            content: '';
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            background: url('""" + LP_BASE + """/asset/tokistorage-icon-512.png') no-repeat center / contain;
+            vertical-align: -3px;
+            margin-right: 6px;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        .nav-links a {
             color: #64748b;
-            border: 1px solid #e2e8f0;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            text-decoration: none !important;
+            text-decoration: none;
+            font-size: 0.8rem;
+            letter-spacing: 0.03em;
+            transition: color 0.3s ease;
         }
-        .lang-switch:hover { border-color: #2563EB; color: #2563EB; }
+        .nav-links a:hover { color: #2563EB; }
+        .lang-switch {
+            padding: 0.35rem 0.7rem !important;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 0.3rem;
+            color: #94a3b8 !important;
+            transition: all 0.3s ease;
+            margin-left: 0.3rem;
+        }
+        .lang-switch:hover {
+            color: #2563EB !important;
+            border-color: #2563EB;
+        }
+        .nav-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .nav-toggle span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: #1e293b;
+            transition: all 0.3s ease;
+        }
 
+        /* ---- Page ---- */
         .page {
             max-width: 800px;
             margin: 0 auto;
@@ -213,6 +308,7 @@ def common_css():
             margin: 0 auto;
         }
 
+        /* ---- Cards ---- */
         .series-card {
             background: #fff;
             border: 1px solid #e2e8f0;
@@ -236,6 +332,7 @@ def common_css():
             margin: 0 0 1rem;
         }
 
+        /* ---- Issues ---- */
         .issue {
             display: flex;
             justify-content: space-between;
@@ -290,6 +387,7 @@ def common_css():
             font-size: 0.9rem;
         }
 
+        /* ---- Footer ---- */
         .page-footer {
             text-align: center;
             padding: 2.5rem 1.5rem;
@@ -318,6 +416,26 @@ def common_css():
         }
         .copyright a { color: #2563EB; text-decoration: none; }
 
+        /* ---- Responsive ---- */
+        @media (max-width: 768px) {
+            .toki-nav { padding: 0.7rem 1.5rem; }
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(255, 255, 255, 0.97);
+                backdrop-filter: blur(16px);
+                flex-direction: column;
+                padding: 1.2rem 1.5rem;
+                gap: 0.8rem;
+                border-bottom: 1px solid #e2e8f0;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            }
+            .nav-links.open { display: flex; }
+            .nav-toggle { display: flex; }
+        }
         @media (max-width: 480px) {
             .issue { flex-direction: column; align-items: flex-start; gap: 8px; }
             .issue-links { margin-left: 0; }
@@ -391,10 +509,7 @@ def generate_index_html(series_map, issues_by_series, s):
     </style>
 </head>
 <body>
-    <div class="page-header">
-        <a href="{s['back_url']}">&larr; {s['back']}</a>
-        <a href="{s['lang_switch_url']}" class="lang-switch">{s['lang_switch_label']}</a>
-    </div>
+{_nav_html(s)}
     <div class="page">
         <div class="page-title">
             <h1>{s['h1']}</h1>
@@ -403,6 +518,7 @@ def generate_index_html(series_map, issues_by_series, s):
 {body_content}
     </div>
 {_footer_html(s)}
+{_nav_js()}
 </body>
 </html>
 """
@@ -438,6 +554,8 @@ def generate_series_html(series_id, info, issues, s):
 {chr(10).join(rows)}
         </div>"""
 
+    series_link = f'            <a href="{s["back_series_url"]}">{s["nav_series"]}</a>\n'
+
     return f"""<!DOCTYPE html>
 <html lang="{s['lang']}">
 <head>
@@ -451,10 +569,7 @@ def generate_series_html(series_id, info, issues, s):
     </style>
 </head>
 <body>
-    <div class="page-header">
-        <a href="{s['back_series_url']}">&larr; {s['back_series']}</a>
-        <a href="{s['lang_switch_url']}" class="lang-switch">{s['lang_switch_label']}</a>
-    </div>
+{_nav_html(s, extra_links=series_link)}
     <div class="page">
         <div class="page-title">
             <h1>{series_name}</h1>
@@ -462,6 +577,7 @@ def generate_series_html(series_id, info, issues, s):
 {body_content}
     </div>
 {_footer_html(s)}
+{_nav_js()}
 </body>
 </html>
 """
