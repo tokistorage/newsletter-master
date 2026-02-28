@@ -254,7 +254,7 @@ def _render_time_groups(tree, render_item, s):
             first_at_level = (i == 0) and is_first
             open_class = " open" if first_at_level or single_child else ""
             count = _count_items(node[key])
-            count_text = _count_label(count, s)
+            count_text = _group_count_label(count, s)
 
             if level == "century":
                 label = _century_label(key, s)
@@ -290,6 +290,13 @@ def _count_label(count, s):
     if s["lang"] == "ja":
         return f"{count}{s['issues_one']}"
     return f"{count}{s['issues_one'] if count == 1 else s['issues_other']}"
+
+
+def _group_count_label(count, s):
+    """Count label for accordion headings (件 / items)."""
+    if s["lang"] == "ja":
+        return f"{count}件"
+    return f"{count} item{'s' if count != 1 else ''}"
 
 
 def _footer_html(s):
