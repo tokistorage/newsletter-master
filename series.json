@@ -8,6 +8,15 @@
       "currentSerial": 0,
       "createdAt": "2026-03-01",
       "status": "active"
+    },
+    {
+      "seriesId": "ts-i85oqq-202603010722",
+      "seriesName": "toki-002",
+      "startYear": 2026,
+      "volumeDurationYears": 20,
+      "currentSerial": 0,
+      "createdAt": "2026-03-01",
+      "status": "active"
     }
   ]
 }
