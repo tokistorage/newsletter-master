@@ -1,0 +1,56 @@
+name: Monthly Archive
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # 1st of every month at 00:00 UTC
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine archive month
+        id: month
+        run: |
+          # Previous month
+          ARCHIVE_MONTH=$(date -d "last month" +%Y-%m 2>/dev/null || date -v-1m +%Y-%m)
+          echo "month=$ARCHIVE_MONTH" >> "$GITHUB_OUTPUT"
+          echo "Archive month: $ARCHIVE_MONTH"
+
+      - name: Find ZIPs from previous month
+        id: find
+        run: |
+          MONTH="${{ steps.month.outputs.month }}"
+          echo "Searching for ZIPs committed in ${MONTH}..."
+
+          # List ZIPs added in the previous month via git log
+          FILES=$(git log --after="${MONTH}-01" --before="${MONTH}-32" --diff-filter=A --name-only --pretty="" -- 'zips/**/*.zip' | sort -u)
+
+          if [ -z "$FILES" ]; then
+            echo "No ZIPs found for ${MONTH}"
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found ZIPs:"
+            echo "$FILES"
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+            echo "$FILES" > /tmp/archive-files.txt
+          fi
+
+      - name: Archive ZIPs
+        if: steps.find.outputs.has_files == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MONTH="${{ steps.month.outputs.month }}"
+          ARCHIVE_REPO="newsletter-archive-${MONTH}"
+
+          echo "Monthly archive: ${ARCHIVE_REPO}"
+          echo "TODO: Create archive repo, copy ZIPs, enable Pages, archive repo"
+          # Implementation will be added when the archive strategy is finalized

@@ -1,0 +1,54 @@
+name: Build PDF for NDL
+
+on:
+  workflow_dispatch:
+    inputs:
+      seriesId:
+        description: 'Series ID (e.g., ts-abc123-202602251000)'
+        required: true
+      serial:
+        description: 'Serial number (e.g., 1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install fpdf2
+
+      - name: Extract ZIP and build PDF
+        run: |
+          SERIES_ID="${{ github.event.inputs.seriesId }}"
+          SERIAL=$(printf "%05d" ${{ github.event.inputs.serial }})
+          ZIP_PATH="zips/${SERIES_ID}/${SERIAL}.zip"
+
+          if [ ! -f "$ZIP_PATH" ]; then
+            echo "ZIP not found: $ZIP_PATH"
+            exit 1
+          fi
+
+          mkdir -p /tmp/extract
+          unzip "$ZIP_PATH" -d /tmp/extract
+
+          # Read manifest
+          cat /tmp/extract/manifest.json
+
+          echo "PDF generation from ZIP — to be implemented with fpdf2"
+          # TODO: Implement fpdf2 PDF generation from manifest.json + QR PNGs
+
+      - name: Upload PDF artifact
+        if: false  # Enable when PDF generation is implemented
+        uses: actions/upload-artifact@v4
+        with:
+          name: "newsletter-pdf-${{ github.event.inputs.serial }}"
+          path: "output/*.pdf"
