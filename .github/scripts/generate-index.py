@@ -49,6 +49,10 @@ STRINGS = {
         "nav_newsletter_url": f"{LP_BASE}/newsletters.html",
         "nav_series": "シリーズ一覧",
         "nav_toggle_label": "メニュー",
+        "recent_series": "最新のシリーズ",
+        "recent_issues": "最新の号",
+        "all_series": "すべてのシリーズ",
+        "all_issues": "すべての号",
         "century_suffix": "世紀",
         "year_suffix": "年",
         "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
@@ -78,6 +82,10 @@ STRINGS = {
         "nav_newsletter_url": f"{LP_BASE}/newsletters-en.html",
         "nav_series": "Series List",
         "nav_toggle_label": "Menu",
+        "recent_series": "Recent Series",
+        "recent_issues": "Recent Issues",
+        "all_series": "All Series",
+        "all_issues": "All Issues",
         "century_suffix": "",  # handled by _century_label
         "year_suffix": "",
         "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -556,6 +564,19 @@ def common_css():
         [data-level="year"] > .time-heading { font-size: 0.95rem; }
         [data-level="month"] > .time-heading { font-size: 0.9rem; }
 
+        /* ---- Section Heading ---- */
+        .section-heading {
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+            font-size: 1.1rem;
+            color: #1e293b;
+            margin: 0 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #C9A962;
+        }
+        .section-divider {
+            margin-top: 2rem;
+        }
+
         /* ---- Footer ---- */
         .page-footer {
             text-align: center;
@@ -674,9 +695,21 @@ def generate_index_html(series_map, issues_by_series, s):
     if not series_items:
         body_content = f'        <p class="empty">{s["empty"]}</p>'
     else:
-        tree = _time_hierarchy(series_items, "_date", s)
+        # Recent section: top 10 series by latest date
+        sorted_by_date = sorted(series_items, key=lambda x: x["_date"], reverse=True)
+        recent = sorted_by_date[:10]
         render = lambda item: _render_series_card(item, s)
-        body_content = _render_time_groups(tree, render, s)
+        recent_cards = "\n".join(render(item) for item in recent)
+        recent_section = f"""        <h2 class="section-heading">{s['recent_series']}</h2>
+{recent_cards}"""
+
+        # All series accordion
+        tree = _time_hierarchy(series_items, "_date", s)
+        accordion_html = _render_time_groups(tree, render, s)
+        all_section = f"""        <h2 class="section-heading section-divider">{s['all_series']}</h2>
+{accordion_html}"""
+
+        body_content = f"{recent_section}\n{all_section}"
 
     return f"""<!DOCTYPE html>
 <html lang="{s['lang']}">
@@ -733,13 +766,25 @@ def generate_series_html(series_id, info, issues, s):
     label = _count_label(count, s)
 
     render = lambda issue: _render_issue_row(issue, s)
+
+    # Recent section: top 10 issues by date
+    sorted_by_date = sorted(issues, key=lambda x: x["date"], reverse=True)
+    recent = sorted_by_date[:10]
+    recent_rows = "\n".join(render(issue) for issue in recent)
+    recent_section = f"""            <h2 class="section-heading">{s['recent_issues']}</h2>
+{recent_rows}"""
+
+    # All issues accordion
     tree = _time_hierarchy(issues, "date", s)
     grouped_html = _render_time_groups(tree, render, s)
+    all_section = f"""            <h2 class="section-heading section-divider">{s['all_issues']}</h2>
+{grouped_html}"""
 
     body_content = f"""        <div class="series-card">
             <h3>{series_name}</h3>
             <p class="series-count">{label}</p>
-{grouped_html}
+{recent_section}
+{all_section}
         </div>"""
 
     series_link = f'            <a href="{s["back_series_url"]}">{s["nav_series"]}</a>\n'
