@@ -34,7 +34,7 @@ STRINGS = {
         "back": "ニュースレター本誌に戻る",
         "back_url": f"{LP_BASE}/newsletters.html",
         "mission": "あなたが物語となり、世代の対話が重なり、未来の道となる。",
-        "mission_en": "You become a story, generations connect in dialogue, the path forward.",
+        "mission_en": "",
         "lang_switch_label": "EN",
         "lang_switch_url": "index-en.html",
         "filename": "index.html",
