@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TokiQR Newsletter Archive</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#1e293b}
+.header{background:#fff;border-bottom:3px solid #2563eb;padding:24px 16px;text-align:center}
+.header h1{margin:0;font-size:1.5rem;color:#1e293b}
+.header p{margin:8px 0 0;color:#64748b;font-size:0.875rem}
+.container{max-width:720px;margin:0 auto;padding:24px 16px}
+.series{background:#fff;border-radius:8px;padding:20px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.series h2{margin:0 0 4px;font-size:1.125rem;color:#1e293b}
+.series-count{margin:0 0 16px;font-size:0.8rem;color:#94a3b8}
+.issue{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid #e2e8f0}
+.issue:first-of-type{border-top:none}
+.issue-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.issue-title{font-size:0.9rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.issue-date{font-size:0.75rem;color:#94a3b8}
+.issue-links{display:flex;gap:8px;flex-shrink:0;margin-left:12px}
+.link{display:inline-block;padding:4px 10px;border-radius:4px;font-size:0.75rem;text-decoration:none;font-weight:500;transition:opacity 0.15s}
+.link:hover{opacity:0.8}
+.link.play{background:#2563eb;color:#fff}
+.link.zip{background:#e2e8f0;color:#475569}
+.link.pdf{background:#f1f5f9;color:#2563eb;border:1px solid #2563eb}
+.empty{text-align:center;color:#94a3b8;padding:40px 0}
+.footer{text-align:center;padding:24px 16px;color:#94a3b8;font-size:0.75rem}
+.footer a{color:#2563eb;text-decoration:none}
+@media(max-width:480px){
+  .issue{flex-direction:column;align-items:flex-start;gap:8px}
+  .issue-links{margin-left:0}
+}
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>TokiQR Newsletter Archive</h1>
+    <p>Voice newsletters preserved as QR codes</p>
+  </div>
+  <div class="container">
+    <p class="empty">まだニュースレターがありません。</p>
+  </div>
+  <div class="footer">
+    <p>&copy; <a href="https://tokistorage.github.io/lp/">TokiStorage</a></p>
+  </div>
+</body>
+</html>
