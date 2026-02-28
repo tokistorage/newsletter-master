@@ -11,6 +11,7 @@ Design matches tokistorage.github.io/lp/newsletters.html.
 import json
 import os
 import zipfile
+from collections import OrderedDict
 from html import escape
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,6 +49,9 @@ STRINGS = {
         "nav_newsletter_url": f"{LP_BASE}/newsletters.html",
         "nav_series": "シリーズ一覧",
         "nav_toggle_label": "メニュー",
+        "century_suffix": "世紀",
+        "year_suffix": "年",
+        "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     },
     "en": {
         "lang": "en",
@@ -74,6 +78,9 @@ STRINGS = {
         "nav_newsletter_url": f"{LP_BASE}/newsletters-en.html",
         "nav_series": "Series List",
         "nav_toggle_label": "Menu",
+        "century_suffix": "",  # handled by _century_label
+        "year_suffix": "",
+        "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     },
 }
 
@@ -143,6 +150,134 @@ def scan_issues():
     return issues_by_series
 
 
+def _century_label(century, s):
+    if s["lang"] == "ja":
+        return f"{century}{s['century_suffix']}"
+    # English ordinal
+    if 11 <= century % 100 <= 13:
+        suffix = "th"
+    elif century % 10 == 1:
+        suffix = "st"
+    elif century % 10 == 2:
+        suffix = "nd"
+    elif century % 10 == 3:
+        suffix = "rd"
+    else:
+        suffix = "th"
+    return f"{century}{suffix} century"
+
+
+def _year_label(year, s):
+    if s["lang"] == "ja":
+        return f"{year}{s['year_suffix']}"
+    return str(year)
+
+
+def _month_label(month, s):
+    return s["months"][month - 1]
+
+
+def _shikinen_range(year):
+    century = (year - 1) // 100 + 1
+    century_start = (century - 1) * 100 + 1
+    shikinen_idx = (year - century_start) // 20
+    shikinen_start = century_start + shikinen_idx * 20
+    shikinen_end = shikinen_start + 19
+    return shikinen_start, shikinen_end
+
+
+def _time_hierarchy(items, date_key, s):
+    """Group items into century > shikinen > year > month, newest first."""
+    tree = OrderedDict()
+    for item in items:
+        d = item[date_key]
+        if not d or len(d) < 7:
+            continue
+        year = int(d[:4])
+        month = int(d[5:7])
+        century = (year - 1) // 100 + 1
+        sh_start, sh_end = _shikinen_range(year)
+
+        c_key = century
+        sh_key = (sh_start, sh_end)
+        y_key = year
+        m_key = month
+
+        tree.setdefault(c_key, OrderedDict()) \
+            .setdefault(sh_key, OrderedDict()) \
+            .setdefault(y_key, OrderedDict()) \
+            .setdefault(m_key, []).append(item)
+
+    # Sort all levels descending (newest first)
+    sorted_tree = OrderedDict()
+    for c_key in sorted(tree.keys(), reverse=True):
+        sorted_c = OrderedDict()
+        for sh_key in sorted(tree[c_key].keys(), reverse=True):
+            sorted_sh = OrderedDict()
+            for y_key in sorted(tree[c_key][sh_key].keys(), reverse=True):
+                sorted_y = OrderedDict()
+                for m_key in sorted(tree[c_key][sh_key][y_key].keys(), reverse=True):
+                    sorted_y[m_key] = tree[c_key][sh_key][y_key][m_key]
+                sorted_sh[y_key] = sorted_y
+            sorted_c[sh_key] = sorted_sh
+        sorted_tree[c_key] = sorted_c
+
+    return sorted_tree
+
+
+def _count_items(node):
+    """Count leaf items recursively in a nested OrderedDict."""
+    if isinstance(node, list):
+        return len(node)
+    return sum(_count_items(v) for v in node.values())
+
+
+def _render_time_groups(tree, render_item, s):
+    """Render nested time hierarchy as accordion HTML."""
+    parts = []
+    levels = ["century", "shikinen", "year", "month"]
+
+    def _render(node, level_idx, is_first):
+        level = levels[level_idx]
+        keys = list(node.keys())
+        single_child = len(keys) == 1
+
+        for i, key in enumerate(keys):
+            first_at_level = (i == 0) and is_first
+            open_class = " open" if first_at_level or single_child else ""
+            count = _count_items(node[key])
+            count_text = _count_label(count, s)
+
+            if level == "century":
+                label = _century_label(key, s)
+            elif level == "shikinen":
+                sh_start, sh_end = key
+                label = f"{sh_start}\u2013{sh_end}"
+            elif level == "year":
+                label = _year_label(key, s)
+            else:
+                label = _month_label(key, s)
+
+            parts.append(
+                f'<div class="time-group{open_class}" data-level="{level}">'
+                f'<button class="time-heading">{escape(label)} '
+                f'<span class="time-count">{count_text}</span></button>'
+                f'<div class="time-body">'
+            )
+
+            if level_idx < len(levels) - 1:
+                _render(node[key], level_idx + 1, first_at_level)
+            else:
+                # Leaf level — render items
+                for item in node[key]:
+                    parts.append(render_item(item))
+
+            parts.append('</div></div>')
+
+    _render(tree, 0, True)
+    return "\n".join(parts)
+
+
 def _count_label(count, s):
     if s["lang"] == "ja":
         return f"{count}{s['issues_one']}"
@@ -174,12 +309,23 @@ def _nav_html(s, extra_links=""):
 
 
 def _nav_js():
-    """Mobile nav toggle script."""
+    """Mobile nav toggle + accordion script."""
     return """    <script>
     (function() {
         var t = document.querySelector('.nav-toggle');
         var n = document.querySelector('.nav-links');
         if (t && n) t.addEventListener('click', function() { n.classList.toggle('open'); });
+        document.querySelectorAll('.time-heading').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                this.parentElement.classList.toggle('open');
+            });
+        });
+        document.querySelectorAll('.time-group').forEach(function(g) {
+            var body = g.querySelector('.time-body');
+            if (!body) return;
+            var subs = body.querySelectorAll(':scope > .time-group');
+            if (subs.length === 1) g.classList.add('open');
+        });
     })();
     </script>"""
 
@@ -387,6 +533,29 @@ def common_css():
             font-size: 0.9rem;
         }
 
+        /* ---- Time Accordion ---- */
+        .time-group { margin-bottom: 0.5rem; }
+        .time-heading {
+            display: flex; align-items: center; gap: 0.5rem;
+            width: 100%; background: none; border: none;
+            padding: 0.5rem 0; cursor: pointer;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+            font-size: 1rem;
+            color: #1e293b; text-align: left;
+        }
+        .time-heading::before {
+            content: '\u25b6'; font-size: 0.65rem; color: #94a3b8;
+            transition: transform 0.2s;
+        }
+        .time-group.open > .time-heading::before { transform: rotate(90deg); }
+        .time-body { display: none; padding-left: 1rem; }
+        .time-group.open > .time-body { display: block; }
+        .time-count { font-size: 0.75rem; color: #94a3b8; font-weight: normal; }
+        [data-level="century"] > .time-heading { font-size: 1.1rem; }
+        [data-level="shikinen"] > .time-heading { font-size: 1rem; }
+        [data-level="year"] > .time-heading { font-size: 0.95rem; }
+        [data-level="month"] > .time-heading { font-size: 0.9rem; }
+
         /* ---- Footer ---- */
         .page-footer {
             text-align: center;
@@ -465,35 +634,49 @@ def _index_card_css():
         }"""
 
 
-def generate_index_html(series_map, issues_by_series, s):
-    """Generate top-level index page (series list only, no individual issues)."""
-    cards = []
+def _render_series_card(item, s):
+    """Render a single series card for the index page."""
+    series_id = item["_series_id"]
+    series_name = escape(item["_series_name"])
+    count = item["_count"]
+    label = _count_label(count, s)
+    latest_date = item["_date"]
 
-    for series_id in sorted(issues_by_series.keys()):
-        issues = issues_by_series[series_id]
-        info = series_map.get(series_id, {})
-        series_name = escape(info.get("seriesName", series_id))
-        count = len(issues)
-        label = _count_label(count, s)
-        latest_date = issues[0]["date"] if issues else ""
+    latest_html = ""
+    if latest_date:
+        latest_html = f' <span class="series-latest">({s["series_latest"]}: {escape(latest_date)})</span>'
 
-        latest_html = ""
-        if latest_date:
-            latest_html = f' <span class="series-latest">({s["series_latest"]}: {escape(latest_date)})</span>'
-
-        cards.append(f"""        <div class="series-card">
+    return f"""<div class="series-card">
             <a href="series/{escape(series_id)}/{s['filename']}">
                 <h3>{series_name}</h3>
                 <div class="series-meta">
                     <p class="series-count">{label}{latest_html}</p>
                 </div>
             </a>
-        </div>""")
+        </div>"""
 
-    if not cards:
+
+def generate_index_html(series_map, issues_by_series, s):
+    """Generate top-level index page (series list only, no individual issues)."""
+    # Build items with latest date per series for time grouping
+    series_items = []
+    for series_id in sorted(issues_by_series.keys()):
+        issues = issues_by_series[series_id]
+        info = series_map.get(series_id, {})
+        latest_date = issues[0]["date"] if issues else ""
+        series_items.append({
+            "_series_id": series_id,
+            "_series_name": info.get("seriesName", series_id),
+            "_count": len(issues),
+            "_date": latest_date,
+        })
+
+    if not series_items:
         body_content = f'        <p class="empty">{s["empty"]}</p>'
     else:
-        body_content = "\n".join(cards)
+        tree = _time_hierarchy(series_items, "_date", s)
+        render = lambda item: _render_series_card(item, s)
+        body_content = _render_time_groups(tree, render, s)
 
     return f"""<!DOCTYPE html>
 <html lang="{s['lang']}">
@@ -524,34 +707,39 @@ def generate_index_html(series_map, issues_by_series, s):
 """
 
 
+def _render_issue_row(issue, s):
+    """Render a single issue row for a series page."""
+    title_text = escape(issue["title"]) if issue["title"] else f'TQ-{issue["serial_str"]}'
+    date_text = escape(issue["date"]) if issue["date"] else ""
+
+    links = [f'<a href="{escape(issue["play_url"])}" class="link play">{s["play"]}</a>']
+    links.append(f'<a href="{escape(issue["zip_url"])}" class="link zip">ZIP</a>')
+    if issue["pdf_url"]:
+        links.append(f'<a href="{escape(issue["pdf_url"])}" class="link pdf">PDF</a>')
+
+    return f"""<div class="issue">
+                <div class="issue-info">
+                    <span class="issue-title">{title_text}</span>
+                    <span class="issue-date">{date_text}</span>
+                </div>
+                <div class="issue-links">{" ".join(links)}</div>
+            </div>"""
+
+
 def generate_series_html(series_id, info, issues, s):
     """Generate per-series detail page (all issues listed)."""
     series_name = escape(info.get("seriesName", series_id))
     count = len(issues)
     label = _count_label(count, s)
 
-    rows = []
-    for issue in issues:
-        title_text = escape(issue["title"]) if issue["title"] else f'TQ-{issue["serial_str"]}'
-        date_text = escape(issue["date"]) if issue["date"] else ""
-
-        links = [f'<a href="{escape(issue["play_url"])}" class="link play">{s["play"]}</a>']
-        links.append(f'<a href="{escape(issue["zip_url"])}" class="link zip">ZIP</a>')
-        if issue["pdf_url"]:
-            links.append(f'<a href="{escape(issue["pdf_url"])}" class="link pdf">PDF</a>')
-
-        rows.append(f"""            <div class="issue">
-                <div class="issue-info">
-                    <span class="issue-title">{title_text}</span>
-                    <span class="issue-date">{date_text}</span>
-                </div>
-                <div class="issue-links">{" ".join(links)}</div>
-            </div>""")
+    render = lambda issue: _render_issue_row(issue, s)
+    tree = _time_hierarchy(issues, "date", s)
+    grouped_html = _render_time_groups(tree, render, s)
 
     body_content = f"""        <div class="series-card">
             <h3>{series_name}</h3>
             <p class="series-count">{label}</p>
-{chr(10).join(rows)}
+{grouped_html}
         </div>"""
 
     series_link = f'            <a href="{s["back_series_url"]}">{s["nav_series"]}</a>\n'
