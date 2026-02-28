@@ -376,12 +376,6 @@
                 this.parentElement.classList.toggle('open');
             });
         });
-        document.querySelectorAll('.time-group').forEach(function(g) {
-            var body = g.querySelector('.time-body');
-            if (!body) return;
-            var subs = body.querySelectorAll(':scope > .time-group');
-            if (subs.length === 1) g.classList.add('open');
-        });
     })();
     </script>
 </body>
