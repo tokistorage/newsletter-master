@@ -1,54 +1,55 @@
-name: Build PDF for NDL
+name: Build PDFs and Index
 
 on:
+  push:
+    branches: [main]
+    paths: ['zips/**']
   workflow_dispatch:
-    inputs:
-      seriesId:
-        description: 'Series ID (e.g., ts-abc123-202602251000)'
-        required: true
-      serial:
-        description: 'Serial number (e.g., 1)'
-        required: true
 
 permissions:
   contents: write
+
+concurrency:
+  group: build-pdf
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: tokistorage/lp
+          sparse-checkout: newsletter/build-tokiqr-newsletter.py
+          path: lp-scripts
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install fpdf2
-
-      - name: Extract ZIP and build PDF
         run: |
-          SERIES_ID="${{ github.event.inputs.seriesId }}"
-          SERIAL=$(printf "%05d" ${{ github.event.inputs.serial }})
-          ZIP_PATH="zips/${SERIES_ID}/${SERIAL}.zip"
+          pip install fpdf2 'qrcode[pil]'
+          sudo apt-get update && sudo apt-get install -y fonts-ipafont-gothic
 
-          if [ ! -f "$ZIP_PATH" ]; then
-            echo "ZIP not found: $ZIP_PATH"
-            exit 1
+      - name: Build missing PDFs
+        run: python .github/scripts/build-pdfs.py
+
+      - name: Generate index.html
+        run: python .github/scripts/generate-index.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/ index.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Generate PDFs and update index.html"
+            git push
           fi
-
-          mkdir -p /tmp/extract
-          unzip "$ZIP_PATH" -d /tmp/extract
-
-          # Read manifest
-          cat /tmp/extract/manifest.json
-
-          echo "PDF generation from ZIP — to be implemented with fpdf2"
-          # TODO: Implement fpdf2 PDF generation from manifest.json + QR PNGs
-
-      - name: Upload PDF artifact
-        if: false  # Enable when PDF generation is implemented
-        uses: actions/upload-artifact@v4
-        with:
-          name: "newsletter-pdf-${{ github.event.inputs.serial }}"
-          path: "output/*.pdf"
