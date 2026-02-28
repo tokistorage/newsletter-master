@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   auto-merge:
@@ -16,3 +17,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+      - name: Trigger Build PDFs and Index
+        run: gh workflow run "Build PDFs and Index" --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
