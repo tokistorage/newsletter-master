@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Generate index.html and index-en.html for newsletter-master GitHub Pages.
+"""Generate index pages for newsletter-master GitHub Pages.
 
-Reads series.json + zips/ + output/ directories and produces static
-index pages with play/ZIP/PDF links for each newsletter issue.
+Reads series.json + zips/ + output/ directories and produces:
+  - index.html / index-en.html        — series list (cards)
+  - series/{id}/index.html / index-en.html — per-series issue list
+
 Design matches tokistorage.github.io/lp/newsletters.html.
 """
 
@@ -31,8 +33,11 @@ STRINGS = {
         "play": "&#9654; 再生",
         "issues_one": "号",
         "issues_other": "号",
+        "series_latest": "最新",
         "back": "ニュースレター本誌に戻る",
         "back_url": f"{LP_BASE}/newsletters.html",
+        "back_series": "シリーズ一覧に戻る",
+        "back_series_url": "../../index.html",
         "mission": "あなたが物語となり、世代の対話が重なり、未来の道となる。",
         "mission_en": "",
         "lang_switch_label": "EN",
@@ -49,8 +54,11 @@ STRINGS = {
         "play": "&#9654; Play",
         "issues_one": " issue",
         "issues_other": " issues",
+        "series_latest": "Latest",
         "back": "Back to Newsletter",
         "back_url": f"{LP_BASE}/newsletters-en.html",
+        "back_series": "Back to series list",
+        "back_series_url": "../../index-en.html",
         "mission": "You become a story, generations connect in dialogue, the path forward.",
         "mission_en": "",
         "lang_switch_label": "JA",
@@ -125,49 +133,249 @@ def scan_issues():
     return issues_by_series
 
 
-def generate_html(series_map, issues_by_series, s):
-    """Generate HTML for a given language."""
-    series_sections = []
+def _count_label(count, s):
+    if s["lang"] == "ja":
+        return f"{count}{s['issues_one']}"
+    return f"{count}{s['issues_one'] if count == 1 else s['issues_other']}"
+
+
+def _footer_html(s):
+    mission_sub = ""
+    if s.get("mission_en"):
+        mission_sub = f'\n            <p class="mission-sub">{s["mission_en"]}</p>'
+    return f"""    <footer class="page-footer">
+        <p class="mission">{s['mission']}</p>{mission_sub}
+        <p class="copyright">&copy; 2026 <a href="{LP_BASE}/">TokiStorage</a>. All rights reserved.</p>
+    </footer>"""
+
+
+def common_css():
+    return """        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+
+        .page-header {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header a { color: #2563EB; text-decoration: none; font-size: 0.85rem; }
+        .page-header a:hover { text-decoration: underline; }
+        .lang-switch {
+            font-size: 0.8rem;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            text-decoration: none !important;
+        }
+        .lang-switch:hover { border-color: #2563EB; color: #2563EB; }
+
+        .page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .page-title {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+        .page-title h1 {
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+            font-size: 1.8rem;
+            color: #1e293b;
+            margin: 0 0 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+        }
+        .page-title h1::before {
+            content: '';
+            width: 4px;
+            height: 1.5rem;
+            background: #C9A962;
+            border-radius: 2px;
+        }
+        .page-title .lead {
+            font-size: 0.9rem;
+            color: #64748b;
+            line-height: 1.8;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        .series-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: border-color 0.2s;
+        }
+        .series-card:hover {
+            border-color: #C9A962;
+        }
+        .series-card h3 {
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+            font-size: 1.15rem;
+            color: #1e293b;
+            margin: 0 0 0.25rem;
+        }
+        .series-count {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin: 0 0 1rem;
+        }
+
+        .issue {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-top: 1px solid #f1f5f9;
+        }
+        .issue:first-of-type { border-top: none; }
+        .issue-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
+        }
+        .issue-title {
+            font-size: 0.9rem;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .issue-date {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .issue-links {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .link {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.15s;
+        }
+        .link:hover { opacity: 0.8; }
+        .link.play { background: #C9A962; color: #fff; }
+        .link.zip { background: #e2e8f0; color: #475569; }
+        .link.pdf { background: #f1f5f9; color: #C9A962; border: 1px solid #C9A962; }
+
+        .empty {
+            text-align: center;
+            color: #94a3b8;
+            padding: 3rem 0;
+            font-size: 0.9rem;
+        }
+
+        .page-footer {
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 1rem;
+        }
+        .mission {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-style: italic;
+            margin: 0 0 0.4rem;
+            line-height: 1.6;
+        }
+        .mission-sub {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 0.75rem;
+            color: #b0bec5;
+            font-style: italic;
+            margin: 0 0 1rem;
+        }
+        .copyright {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin: 0;
+        }
+        .copyright a { color: #2563EB; text-decoration: none; }
+
+        @media (max-width: 480px) {
+            .issue { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .issue-links { margin-left: 0; }
+            .page-title h1 { font-size: 1.4rem; }
+        }"""
+
+
+def _index_card_css():
+    """Extra CSS for top-level index cards (clickable, with latest date)."""
+    return """
+        .series-card a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .series-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .series-count {
+            margin: 0;
+        }
+        .series-latest {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }"""
+
+
+def generate_index_html(series_map, issues_by_series, s):
+    """Generate top-level index page (series list only, no individual issues)."""
+    cards = []
 
     for series_id in sorted(issues_by_series.keys()):
         issues = issues_by_series[series_id]
         info = series_map.get(series_id, {})
         series_name = escape(info.get("seriesName", series_id))
         count = len(issues)
-        count_label = f"{count}{s['issues_one']}" if s["lang"] == "ja" else f"{count}{s['issues_one'] if count == 1 else s['issues_other']}"
+        label = _count_label(count, s)
+        latest_date = issues[0]["date"] if issues else ""
 
-        rows = []
-        for issue in issues:
-            title_text = escape(issue["title"]) if issue["title"] else f'TQ-{issue["serial_str"]}'
-            date_text = escape(issue["date"]) if issue["date"] else ""
+        latest_html = ""
+        if latest_date:
+            latest_html = f' <span class="series-latest">({s["series_latest"]}: {escape(latest_date)})</span>'
 
-            links = [f'<a href="{escape(issue["play_url"])}" class="link play">{s["play"]}</a>']
-            links.append(f'<a href="{escape(issue["zip_url"])}" class="link zip">ZIP</a>')
-            if issue["pdf_url"]:
-                links.append(f'<a href="{escape(issue["pdf_url"])}" class="link pdf">PDF</a>')
-
-            rows.append(f"""            <div class="issue">
-                <div class="issue-info">
-                    <span class="issue-title">{title_text}</span>
-                    <span class="issue-date">{date_text}</span>
+        cards.append(f"""        <div class="series-card">
+            <a href="series/{escape(series_id)}/{s['filename']}">
+                <h3>{series_name}</h3>
+                <div class="series-meta">
+                    <p class="series-count">{label}{latest_html}</p>
                 </div>
-                <div class="issue-links">{" ".join(links)}</div>
-            </div>""")
-
-        series_sections.append(f"""        <div class="series-card">
-            <h3>{series_name}</h3>
-            <p class="series-count">{count_label}</p>
-{chr(10).join(rows)}
+            </a>
         </div>""")
 
-    if not series_sections:
+    if not cards:
         body_content = f'        <p class="empty">{s["empty"]}</p>'
     else:
-        body_content = "\n".join(series_sections)
-
-    mission_sub = ""
-    if s.get("mission_en"):
-        mission_sub = f'\n            <p class="mission-sub">{s["mission_en"]}</p>'
+        body_content = "\n".join(cards)
 
     return f"""<!DOCTYPE html>
 <html lang="{s['lang']}">
@@ -178,179 +386,8 @@ def generate_html(series_map, issues_by_series, s):
     <link rel="apple-touch-icon" sizes="180x180" href="{LP_BASE}/asset/apple-touch-icon.png">
     <title>{s['title']}</title>
     <style>
-        *, *::before, *::after {{ box-sizing: border-box; }}
-        body {{
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Segoe UI', Roboto, sans-serif;
-            background: #f8fafc;
-            color: #1e293b;
-        }}
-
-        .page-header {{
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 0.75rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }}
-        .page-header a {{ color: #2563EB; text-decoration: none; font-size: 0.85rem; }}
-        .page-header a:hover {{ text-decoration: underline; }}
-        .lang-switch {{
-            font-size: 0.8rem;
-            color: #64748b;
-            border: 1px solid #e2e8f0;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            text-decoration: none !important;
-        }}
-        .lang-switch:hover {{ border-color: #2563EB; color: #2563EB; }}
-
-        .page {{
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem;
-        }}
-
-        .page-title {{
-            text-align: center;
-            margin-bottom: 2.5rem;
-        }}
-        .page-title h1 {{
-            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
-            font-size: 1.8rem;
-            color: #1e293b;
-            margin: 0 0 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.6rem;
-        }}
-        .page-title h1::before {{
-            content: '';
-            width: 4px;
-            height: 1.5rem;
-            background: #C9A962;
-            border-radius: 2px;
-        }}
-        .page-title .lead {{
-            font-size: 0.9rem;
-            color: #64748b;
-            line-height: 1.8;
-            max-width: 560px;
-            margin: 0 auto;
-        }}
-
-        .series-card {{
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            transition: border-color 0.2s;
-        }}
-        .series-card:hover {{
-            border-color: #C9A962;
-        }}
-        .series-card h3 {{
-            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
-            font-size: 1.15rem;
-            color: #1e293b;
-            margin: 0 0 0.25rem;
-        }}
-        .series-count {{
-            font-size: 0.8rem;
-            color: #94a3b8;
-            margin: 0 0 1rem;
-        }}
-
-        .issue {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0;
-            border-top: 1px solid #f1f5f9;
-        }}
-        .issue:first-of-type {{ border-top: none; }}
-        .issue-info {{
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-            flex: 1;
-        }}
-        .issue-title {{
-            font-size: 0.9rem;
-            color: #1e293b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }}
-        .issue-date {{
-            font-size: 0.75rem;
-            color: #94a3b8;
-        }}
-        .issue-links {{
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-            margin-left: 12px;
-        }}
-
-        .link {{
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            text-decoration: none;
-            font-weight: 500;
-            transition: opacity 0.15s;
-        }}
-        .link:hover {{ opacity: 0.8; }}
-        .link.play {{ background: #C9A962; color: #fff; }}
-        .link.zip {{ background: #e2e8f0; color: #475569; }}
-        .link.pdf {{ background: #f1f5f9; color: #C9A962; border: 1px solid #C9A962; }}
-
-        .empty {{
-            text-align: center;
-            color: #94a3b8;
-            padding: 3rem 0;
-            font-size: 0.9rem;
-        }}
-
-        .page-footer {{
-            text-align: center;
-            padding: 2.5rem 1.5rem;
-            border-top: 1px solid #e2e8f0;
-            margin-top: 1rem;
-        }}
-        .mission {{
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 0.85rem;
-            color: #94a3b8;
-            font-style: italic;
-            margin: 0 0 0.4rem;
-            line-height: 1.6;
-        }}
-        .mission-sub {{
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 0.75rem;
-            color: #b0bec5;
-            font-style: italic;
-            margin: 0 0 1rem;
-        }}
-        .copyright {{
-            font-size: 0.75rem;
-            color: #94a3b8;
-            margin: 0;
-        }}
-        .copyright a {{ color: #2563EB; text-decoration: none; }}
-
-        @media (max-width: 480px) {{
-            .issue {{ flex-direction: column; align-items: flex-start; gap: 8px; }}
-            .issue-links {{ margin-left: 0; }}
-            .page-title h1 {{ font-size: 1.4rem; }}
-        }}
+{common_css()}
+{_index_card_css()}
     </style>
 </head>
 <body>
@@ -365,10 +402,66 @@ def generate_html(series_map, issues_by_series, s):
         </div>
 {body_content}
     </div>
-    <footer class="page-footer">
-        <p class="mission">{s['mission']}</p>{mission_sub}
-        <p class="copyright">&copy; 2026 <a href="{LP_BASE}/">TokiStorage</a>. All rights reserved.</p>
-    </footer>
+{_footer_html(s)}
+</body>
+</html>
+"""
+
+
+def generate_series_html(series_id, info, issues, s):
+    """Generate per-series detail page (all issues listed)."""
+    series_name = escape(info.get("seriesName", series_id))
+    count = len(issues)
+    label = _count_label(count, s)
+
+    rows = []
+    for issue in issues:
+        title_text = escape(issue["title"]) if issue["title"] else f'TQ-{issue["serial_str"]}'
+        date_text = escape(issue["date"]) if issue["date"] else ""
+
+        links = [f'<a href="{escape(issue["play_url"])}" class="link play">{s["play"]}</a>']
+        links.append(f'<a href="{escape(issue["zip_url"])}" class="link zip">ZIP</a>')
+        if issue["pdf_url"]:
+            links.append(f'<a href="{escape(issue["pdf_url"])}" class="link pdf">PDF</a>')
+
+        rows.append(f"""            <div class="issue">
+                <div class="issue-info">
+                    <span class="issue-title">{title_text}</span>
+                    <span class="issue-date">{date_text}</span>
+                </div>
+                <div class="issue-links">{" ".join(links)}</div>
+            </div>""")
+
+    body_content = f"""        <div class="series-card">
+            <h3>{series_name}</h3>
+            <p class="series-count">{label}</p>
+{chr(10).join(rows)}
+        </div>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="{s['lang']}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="32x32" href="{LP_BASE}/asset/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="{LP_BASE}/asset/apple-touch-icon.png">
+    <title>{series_name} | {s['title']}</title>
+    <style>
+{common_css()}
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <a href="{s['back_series_url']}">&larr; {s['back_series']}</a>
+        <a href="{s['lang_switch_url']}" class="lang-switch">{s['lang_switch_label']}</a>
+    </div>
+    <div class="page">
+        <div class="page-title">
+            <h1>{series_name}</h1>
+        </div>
+{body_content}
+    </div>
+{_footer_html(s)}
 </body>
 </html>
 """
@@ -378,14 +471,30 @@ def main():
     series_map = load_series()
     issues_by_series = scan_issues()
 
+    # Generate top-level index pages
     for lang, strings in STRINGS.items():
-        html = generate_html(series_map, issues_by_series, strings)
+        html = generate_index_html(series_map, issues_by_series, strings)
         out_path = os.path.join(REPO_ROOT, strings["filename"])
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(html)
 
+    # Generate per-series detail pages
+    series_count = 0
+    for series_id in sorted(issues_by_series.keys()):
+        issues = issues_by_series[series_id]
+        info = series_map.get(series_id, {})
+        series_dir = os.path.join(REPO_ROOT, "series", series_id)
+        os.makedirs(series_dir, exist_ok=True)
+
+        for lang, strings in STRINGS.items():
+            html = generate_series_html(series_id, info, issues, strings)
+            out_path = os.path.join(series_dir, strings["filename"])
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(html)
+        series_count += 1
+
     total = sum(len(v) for v in issues_by_series.values())
-    print(f"Generated index.html + index-en.html: {len(issues_by_series)} series, {total} issues")
+    print(f"Generated index pages: {series_count} series, {total} issues")
 
 
 if __name__ == "__main__":
