@@ -1,0 +1,16 @@
+{
+  "seriesId": "ts-i85oqq-202603010722",
+  "seriesName": "toki-002",
+  "title": "",
+  "urls": [
+    "http://localhost:8000/qr/play.html?bulk=1&sid=IkQuv789&seq=1&of=1&type=txt&ts=20260301084607&tz=%2B9&loc=35.6421,139.9179&d=iwKAdGVzdGVhAw"
+  ],
+  "hasZip": true,
+  "metadata": {
+    "ts": "20260301084607",
+    "tz": "+9",
+    "type": "text",
+    "chunkCount": 1
+  },
+  "queuedAt": "2026-03-01T08:46:14.575"
+}
