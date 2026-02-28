@@ -209,6 +209,29 @@
             font-size: 0.9rem;
         }
 
+        /* ---- Time Accordion ---- */
+        .time-group { margin-bottom: 0.5rem; }
+        .time-heading {
+            display: flex; align-items: center; gap: 0.5rem;
+            width: 100%; background: none; border: none;
+            padding: 0.5rem 0; cursor: pointer;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+            font-size: 1rem;
+            color: #1e293b; text-align: left;
+        }
+        .time-heading::before {
+            content: '▶'; font-size: 0.65rem; color: #94a3b8;
+            transition: transform 0.2s;
+        }
+        .time-group.open > .time-heading::before { transform: rotate(90deg); }
+        .time-body { display: none; padding-left: 1rem; }
+        .time-group.open > .time-body { display: block; }
+        .time-count { font-size: 0.75rem; color: #94a3b8; font-weight: normal; }
+        [data-level="century"] > .time-heading { font-size: 1.1rem; }
+        [data-level="shikinen"] > .time-heading { font-size: 1rem; }
+        [data-level="year"] > .time-heading { font-size: 0.95rem; }
+        [data-level="month"] > .time-heading { font-size: 0.9rem; }
+
         /* ---- Footer ---- */
         .page-footer {
             text-align: center;
@@ -284,20 +307,28 @@
         <div class="series-card">
             <h3>toki-002</h3>
             <p class="series-count">2号</p>
-            <div class="issue">
+<div class="time-group open" data-level="century"><button class="time-heading">21世紀 <span class="time-count">2号</span></button><div class="time-body">
+<div class="time-group open" data-level="shikinen"><button class="time-heading">2021–2040 <span class="time-count">2号</span></button><div class="time-body">
+<div class="time-group open" data-level="year"><button class="time-heading">2026年 <span class="time-count">2号</span></button><div class="time-body">
+<div class="time-group open" data-level="month"><button class="time-heading">2月 <span class="time-count">2号</span></button><div class="time-body">
+<div class="issue">
                 <div class="issue-info">
                     <span class="issue-title">TQ-00002</span>
                     <span class="issue-date">2026-02-28</span>
                 </div>
                 <div class="issue-links"><a href="https://tokistorage.github.io/qr/play.html?zip=https://tokistorage.github.io/newsletter-master/zips/ts-i85oqq-202603010722/00002.zip" class="link play">&#9654; 再生</a> <a href="https://tokistorage.github.io/newsletter-master/zips/ts-i85oqq-202603010722/00002.zip" class="link zip">ZIP</a> <a href="https://tokistorage.github.io/newsletter-master/output/ts-i85oqq-202603010722/TQ-00002.pdf" class="link pdf">PDF</a></div>
             </div>
-            <div class="issue">
+<div class="issue">
                 <div class="issue-info">
                     <span class="issue-title">TQ-00001</span>
                     <span class="issue-date">2026-02-28</span>
                 </div>
                 <div class="issue-links"><a href="https://tokistorage.github.io/qr/play.html?zip=https://tokistorage.github.io/newsletter-master/zips/ts-i85oqq-202603010722/00001.zip" class="link play">&#9654; 再生</a> <a href="https://tokistorage.github.io/newsletter-master/zips/ts-i85oqq-202603010722/00001.zip" class="link zip">ZIP</a> <a href="https://tokistorage.github.io/newsletter-master/output/ts-i85oqq-202603010722/TQ-00001.pdf" class="link pdf">PDF</a></div>
             </div>
+</div></div>
+</div></div>
+</div></div>
+</div></div>
         </div>
     </div>
     <footer class="page-footer">
@@ -309,6 +340,17 @@
         var t = document.querySelector('.nav-toggle');
         var n = document.querySelector('.nav-links');
         if (t && n) t.addEventListener('click', function() { n.classList.toggle('open'); });
+        document.querySelectorAll('.time-heading').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                this.parentElement.classList.toggle('open');
+            });
+        });
+        document.querySelectorAll('.time-group').forEach(function(g) {
+            var body = g.querySelector('.time-body');
+            if (!body) return;
+            var subs = body.querySelectorAll(':scope > .time-group');
+            if (subs.length === 1) g.classList.add('open');
+        });
     })();
     </script>
 </body>
