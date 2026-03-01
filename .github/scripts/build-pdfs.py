@@ -16,6 +16,7 @@ import zipfile
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BUILD_SCRIPT = os.path.join(REPO_ROOT, "lp-scripts", "newsletter", "build-tokiqr-newsletter.py")
+VERIFY_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify-qr.py")
 SERIES_JSON = os.path.join(REPO_ROOT, "series.json")
 ZIPS_DIR = os.path.join(REPO_ROOT, "zips")
 OUTPUT_DIR = os.path.join(REPO_ROOT, "output")
@@ -153,6 +154,20 @@ def build_pdf(series_id, serial_str, zip_path, series_map):
             return False
         if result.stdout:
             print(f"  {result.stdout.strip()}")
+
+        # Verify QR codes in the generated PDF
+        pdf_name = f"TQ-{serial_str}.pdf"
+        pdf_path = os.path.join(out_dir, pdf_name)
+        verify_cmd = [sys.executable, VERIFY_SCRIPT, pdf_path, zip_path]
+        verify_result = subprocess.run(verify_cmd, capture_output=True, text=True)
+        if verify_result.stdout:
+            print(f"  {verify_result.stdout.strip()}")
+        if verify_result.returncode != 0:
+            print(f"  ERROR: QR verification failed for {pdf_name}")
+            if verify_result.stderr:
+                print(f"  stderr: {verify_result.stderr}")
+            return False
+
         return True
 
 
