@@ -12,6 +12,7 @@ import json
 import os
 import zipfile
 from collections import OrderedDict
+from datetime import datetime, timezone, timedelta
 from html import escape
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -101,6 +102,24 @@ def load_series():
     return {s["seriesId"]: s for s in data.get("series", [])}
 
 
+def _format_datetime(iso_str, tz_str=""):
+    """Format ISO datetime to 'YYYY-MM-DD HH:MM' with optional timezone offset."""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        if tz_str:
+            clean = tz_str.lstrip("+-")
+            parts = clean.split(":")
+            hours = int(parts[0])
+            minutes = int(parts[1]) if len(parts) > 1 else 0
+            sign = -1 if tz_str.startswith("-") else 1
+            dt = dt.astimezone(timezone(timedelta(hours=hours, minutes=minutes) * sign))
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return iso_str[:10] if len(iso_str) >= 10 else iso_str
+
+
 def scan_issues():
     issues_by_series = {}
     if not os.path.isdir(ZIPS_DIR):
@@ -119,6 +138,7 @@ def scan_issues():
 
             title = ""
             date = ""
+            tz_offset = ""
             try:
                 with zipfile.ZipFile(zip_path, "r") as zf:
                     if "manifest.json" in zf.namelist():
@@ -129,10 +149,11 @@ def scan_issues():
                                 metadata = manifest.get("metadata", {})
                                 title = metadata.get("title", "")
                             date = manifest.get("createdAt", "")
+                            tz_offset = manifest.get("metadata", {}).get("tz", "")
             except Exception as e:
                 print(f"  WARNING: Could not read {zip_path}: {e}")
 
-            date_display = date[:10] if date else ""
+            date_display = _format_datetime(date, tz_offset)
 
             pdf_name = f"TQ-{serial_str}.pdf"
             pdf_path = os.path.join(OUTPUT_DIR, series_id, pdf_name)
