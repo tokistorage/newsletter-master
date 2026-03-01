@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: build-pdf
@@ -55,3 +56,22 @@ jobs:
             git commit -m "Generate PDFs and update index.html"
             git push
           fi
+
+      - name: Create issue on failure
+        if: failure()
+        run: |
+          gh issue create \
+            --title "PDF build failed: $(date -u +%Y-%m-%d)" \
+            --body "$(cat <<'BODY'
+          ## PDF Build / QR Verification Failed
+
+          **Workflow:** ${{ github.workflow }}
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          **Commit:** ${{ github.sha }}
+
+          ビルドログを確認して対応してください。
+          BODY
+          )" \
+            --label "bug"
+        env:
+          GH_TOKEN: ${{ github.token }}
