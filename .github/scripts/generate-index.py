@@ -141,6 +141,8 @@ def scan_issues():
             zip_url = f"{PAGES_BASE}/zips/{series_id}/{fname}"
             pdf_url = f"{PAGES_BASE}/output/{series_id}/{pdf_name}" if has_pdf else ""
             play_url = f"{PLAY_BASE}?zip={zip_url}"
+            if pdf_url:
+                play_url += f"&pdf={pdf_url}"
 
             issues.append({
                 "serial_str": serial_str,
