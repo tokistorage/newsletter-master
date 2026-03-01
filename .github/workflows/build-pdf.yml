@@ -33,8 +33,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install fpdf2 'qrcode[pil]'
-          sudo apt-get update && sudo apt-get install -y fonts-ipafont-gothic
+          pip install fpdf2 'qrcode[pil]' pymupdf pyzbar
+          sudo apt-get update && sudo apt-get install -y fonts-ipafont-gothic libzbar0
 
       - name: Build missing PDFs
         run: python .github/scripts/build-pdfs.py
